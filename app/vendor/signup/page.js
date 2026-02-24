@@ -4,14 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
-// Add this line to prevent prerendering
 export const dynamic = 'force-dynamic'
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
 
 export default function VendorSignup() {
   const [formData, setFormData] = useState({
@@ -27,6 +20,19 @@ export default function VendorSignup() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
+  // Initialize Supabase client INSIDE the component
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Debug log (you can remove this later)
+  console.log('URL exists:', !!supabaseUrl)
+  console.log('Key exists:', !!supabaseAnonKey)
+
+  // Only create client if variables exist
+  const supabase = supabaseUrl && supabaseAnonKey 
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null
+
   const handleCategoryChange = (category) => {
     setFormData({
       ...formData,
@@ -41,6 +47,13 @@ export default function VendorSignup() {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+
+    // Check if Supabase client is available
+    if (!supabase) {
+      setMessage('Configuration error. Please try again later.')
+      setLoading(false)
+      return
+    }
 
     // Build array of selected categories
     const selectedCategories = []
