@@ -2,6 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 export default function VendorSignup() {
   const [formData, setFormData] = useState({
@@ -14,12 +21,8 @@ export default function VendorSignup() {
       nonGmo: false
     }
   })
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    alert('Vendor registration submitted! (Demo - database coming soon)')
-    console.log('Form data:', formData)
-  }
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   const handleCategoryChange = (category) => {
     setFormData({
@@ -29,6 +32,52 @@ export default function VendorSignup() {
         [category]: !formData.categories[category]
       }
     })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('')
+
+    // Build array of selected categories
+    const selectedCategories = []
+    if (formData.categories.halal) selectedCategories.push('halal')
+    if (formData.categories.vegan) selectedCategories.push('vegan')
+    if (formData.categories.nonGmo) selectedCategories.push('non-gmo')
+
+    if (selectedCategories.length === 0) {
+      setMessage('Please select at least one category.')
+      setLoading(false)
+      return
+    }
+
+    // Insert into Supabase
+    const { error } = await supabase
+      .from('vendors')
+      .insert([
+        {
+          business_name: formData.businessName,
+          address: formData.address,
+          phone: formData.phone,
+          categories: selectedCategories,
+          status: 'pending'
+        }
+      ])
+
+    setLoading(false)
+    if (error) {
+      console.error('Error saving vendor:', error)
+      setMessage('Error submitting form. Please try again.')
+    } else {
+      setMessage('Thank you! Your submission has been received and will be reviewed.')
+      // Clear form
+      setFormData({
+        businessName: '',
+        address: '',
+        phone: '',
+        categories: { halal: false, vegan: false, nonGmo: false }
+      })
+    }
   }
 
   return (
@@ -105,17 +154,20 @@ export default function VendorSignup() {
               </div>
             </div>
 
+            {message && (
+              <div className={`mb-4 p-3 rounded ${message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                {message}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
+              disabled={loading}
+              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-green-300"
             >
-              Submit for Review
+              {loading ? 'Submitting...' : 'Submit for Review'}
             </button>
           </form>
-
-          <p className="text-sm text-gray-500 mt-4">
-            Your listing will be reviewed by our team before going live.
-          </p>
         </div>
       </div>
     </main>
